@@ -14,7 +14,7 @@
 
 
 /*Server port */
-#define PORT 8888
+#define PORT 5000
 
 /* Buffer length*/     
 #define BUFFER_LENGTH 64
@@ -29,8 +29,8 @@ char buffer_in[BUFFER_LENGTH];
 int main(int argc , char *argv[])   
 {   
     int opt = TRUE;   
-    int master_socket , addrlen , new_socket , client_socket[30] ,  
-          max_clients = 30 , activity, i , valread , sd;   
+    int master_socket , addrlen , new_socket , slave_socket[10] ,  
+          max_clients = 10 , activity, i , valread , sd;   
     int max_sd;   
     struct sockaddr_in address;   
     int flag = TRUE;     
@@ -38,13 +38,11 @@ int main(int argc , char *argv[])
     //set of socket descriptors  
     fd_set readfds;   
          
-    //a message  
-    char *message = "Bem Vindo ao Calculo da Integral Maldita \r\n";   
      
-    //initialise all client_socket[] to 0 so not checked  
+    //initialise all slave_socket[] to 0 so not checked  
     for (i = 0; i < max_clients; i++){   
      
-        client_socket[i] = 0;   
+        slave_socket[i] = 0;   
     }   
          
     //create a master socket  
@@ -88,20 +86,34 @@ int main(int argc , char *argv[])
     //accept the incoming connection  
     addrlen = sizeof(address);   
     puts("[+]Waiting for connections ...");   
-    
+        
     
     //Values for the integral
     double total = 0;
     double  intervalo = 0;     
-    double descrization = 0.0001;
+    double descrization = 0;
     double aux = 0;
+    int slave = 0;
+   
+    printf("Digite o valor da discretizacao: ");
+    scanf("%lf", &descrization);
+
+    printf("Digite o numero de slaves necessario: ");
+    scanf("%d", &slave);
+    
+    system("gcc Slave.c -o slave -lm ");
+
+    for(int i = 0 ; i < slave; i++){
+        system("./slave&");
+    }
+
 
     
-    while(TRUE){   
+    while(flag){   
         //clear the socket set  
         FD_ZERO(&readfds);   
         
-         
+      
         //add master socket to set  
         FD_SET(master_socket, &readfds);   
         max_sd = master_socket;   
@@ -109,7 +121,7 @@ int main(int argc , char *argv[])
         //add child sockets to set  
         for ( i = 0 ; i < max_clients ; i++){   
             //socket descriptor  
-            sd = client_socket[i];   
+            sd = slave_socket[i];   
                  
             //if valid socket descriptor then add to read list  
             if(sd > 0)   
@@ -152,9 +164,9 @@ int main(int argc , char *argv[])
             //add new socket to array of sockets  
             for (i = 0; i < max_clients; i++){   
                 //if position is empty  
-                if( client_socket[i] == 0 )   
+                if( slave_socket[i] == 0 )   
                 {   
-                    client_socket[i] = new_socket;   
+                    slave_socket[i] = new_socket;   
                     //printf("Adding to list of sockets as %d\n" , i);   
                          
                     break;   
@@ -167,13 +179,13 @@ int main(int argc , char *argv[])
             memset(buffer_in, 0x0, BUFFER_LENGTH);
             memset(buffer, 0x0, BUFFER_LENGTH);
             
-            sd = client_socket[i];   
+            sd = slave_socket[i];   
                  
             if (FD_ISSET( sd , &readfds)){   
                 //Check if it was for closing , and also read the  
                 //incoming message  
                 if ((valread = read( sd , buffer, 1024)) == 0){   
-                    printf("Resultado: %lf\n", total);  
+                                       
                     //Somebody disconnected , get his details and print  
                     getpeername(sd , (struct sockaddr*)&address ,  
                         (socklen_t*)&addrlen);   
@@ -182,18 +194,17 @@ int main(int argc , char *argv[])
                          
                     //Close the socket and mark as 0 in list for reuse  
                     close( sd );   
-                    client_socket[i] = 0; 
+                    FD_CLR (sd, &readfds);
+                    FD_CLR (master_socket, &readfds);
+                    slave_socket[i] = 0; 
+                    flag  = FALSE;
                 }   
                      
                 // receives the message from the slave   
                 else{   
                     // if the intervalo is bigger than 100, send bye to the slave                                                
                     if(intervalo + descrization >= 100){
-                        /*if(flag == TRUE){
-                            sscanf(buffer, "%lf", &aux);
-                            total += aux;
-                            flag = FALSE;
-                        }  */  
+                       
                         strcpy(buffer, "bye");
                         send(sd, buffer, strlen(buffer), 0);
 
@@ -226,7 +237,8 @@ int main(int argc , char *argv[])
             }
         } 
 
-    }   
+    }
+    printf("\nResultado: %lf\n", total);   
          
     return 0;   
 }   

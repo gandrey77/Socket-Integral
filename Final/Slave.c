@@ -14,7 +14,7 @@
 
 
 /* Defines the server port */
-#define PORT 8888
+#define PORT 5000
 
 
 /* Sockets buffers length */
@@ -63,14 +63,14 @@ int main(int argc, char *argv[]) {
     char buffer_out[LEN];
 
 
-    fprintf(stdout, "Starting Client ...\n");
+    fprintf(stdout, "Starting Slave ...\n");
 
 
     /*
      * Creates a socket for the client
      */
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        perror("Error on client socket creation:");
+        perror("Error on slave socket creation:");
         return EXIT_FAILURE;
     }
 
@@ -79,6 +79,7 @@ int main(int argc, char *argv[]) {
     server.sin_family = AF_INET;
     server.sin_port = htons(PORT);
     server.sin_addr.s_addr = inet_addr(SERVER_ADDR);
+    
     memset(server.sin_zero, 0x0, 8);
 
 
@@ -91,6 +92,7 @@ int main(int argc, char *argv[]) {
     double intervalo = 0;
     double discretization = 0;
     double resultado = 0;
+    
     /* Receives the presentation message from the server */
     if ((slen = recv(sockfd, buffer_in, LEN, 0)) > 0) {
         
@@ -135,7 +137,7 @@ int main(int argc, char *argv[]) {
     /* Close the connection whith the server */
     close(sockfd);
 
-    fprintf(stdout, "\nConnection closed\n\n");
+    //fprintf(stdout, "\nConnection closed\n\n");
 
     return 0;
 }   
