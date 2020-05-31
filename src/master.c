@@ -9,14 +9,12 @@
 #include <netinet/in.h>  
 #include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros  
      
-#define bool char
-
-#define true 1
-#define false 0
+#define TRUE   1  
+#define FALSE  0  
 
 
 /*Server port */
-#define PORT 7000
+#define PORT 5000
 
 /* Buffer length*/     
 #define BUFFER_LENGTH 64
@@ -30,12 +28,12 @@ char buffer_in[BUFFER_LENGTH];
 
 int main(int argc , char *argv[])   
 {   
-    bool opt = true;   
+    int opt = TRUE;   
     int master_socket , addrlen , new_socket , slave_socket[10] ,  
           max_clients = 10 , activity, i , valread , sd;   
     int max_sd;   
     struct sockaddr_in address;   
-    bool flag = true;     
+    int flag = TRUE;     
         
     //set of socket descriptors  
     fd_set readfds;   
@@ -101,7 +99,7 @@ int main(int argc , char *argv[])
     printf("Digite o valor da discretizacao: ");
     scanf("%lf", &descrization);
 
-    printf("Digite o numero de slaves necessario: ");   
+    printf("Digite o numero de slaves necessario: ");
     scanf("%d", &slave);
     
     system("gcc slave.c -o slave -lm ");
@@ -187,8 +185,8 @@ int main(int argc , char *argv[])
             if (FD_ISSET( sd , &readfds)){   
                 //Check if it was for closing , and also read the  
                 //incoming message  
-
-                if ((valread = read( sd , buffer, 1024)) == 0){                      
+                if ((valread = read( sd , buffer, 1024)) == 0){   
+                                       
                     //Somebody disconnected , get his details and print  
                     getpeername(sd , (struct sockaddr*)&address ,  
                         (socklen_t*)&addrlen);   
@@ -201,10 +199,10 @@ int main(int argc , char *argv[])
                     FD_CLR (master_socket, &readfds);
                     slave_socket[i] = 0; 
 
-                    slave_closeds += 1;
+                    slave_closeds++;
 
                     if(slave_closeds == slave)
-                        flag = false;
+                        flag  = FALSE;
                 }   
                      
                 // receives the message from the slave   

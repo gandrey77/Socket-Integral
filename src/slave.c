@@ -14,15 +14,14 @@
 
 
 /* Defines the server port */
-#define PORT 7000
-
+#define PORT 5000
 
 /* Sockets buffers length */
 #define LEN 64
 
 
 /* Server address */
-#define SERVER_ADDR "127.0.10.1"
+#define SERVER_ADDR "127.0.0.1"
 
 
 
