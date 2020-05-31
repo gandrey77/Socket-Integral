@@ -1,26 +1,21 @@
 #include <stdio.h>  
-#include <string.h>   //strlen  
+#include <string.h>  
 #include <stdlib.h>  
 #include <errno.h>  
-#include <unistd.h>   //close  
-#include <arpa/inet.h>    //close  
+#include <unistd.h>  
+#include <arpa/inet.h>  
 #include <sys/types.h>  
 #include <sys/socket.h>  
 #include <netinet/in.h>  
-#include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros  
+#include <sys/time.h>
      
 #define TRUE   1  
 #define FALSE  0  
 
-
-/*Server port */
 #define PORT 5000
 
-/* Buffer length*/     
 #define BUFFER_LENGTH 64
 
-
-/*data buffer */
 char buffer[BUFFER_LENGTH];
 char buffer_in[BUFFER_LENGTH];
 
@@ -107,99 +102,92 @@ int main(int argc , char *argv[]) {
     printf("Digite o numero de slaves necessario: ");
     scanf("%d", &slave);
     
-    system("gcc Slave.c -o slave -lm ");
+    system("gcc slave.c -o slave -lm ");
 
     for(int i = 0 ; i < slave; i++){
         system("./slave&");
     }
 
     while(executing){   
-        //clear the socket set  
+        // Limpa o conjunto de sockets
         FD_ZERO(&read_file_descriptors);   
         
-      
-        //add master socket to set  
+        // Adiciona o master socket ao conjunto de sockets
         FD_SET(master_socket, &read_file_descriptors);   
+
         max_socket_descriptor = master_socket;   
              
-        //add child sockets to set  
-        for ( i = 0 ; i < max_clients ; i++){   
-            //socket descriptor  
+        // Adiciona os sockets dos slaves ao conjunto de sockets  
+        for ( i = 0 ; i < max_clients ; i++) {
             socket_descriptor = slave_socket[i];   
                  
-            //if valid socket descriptor then add to read list  
+            // Se o descritor do socket for valido, o adicionamos a lista de leitura 
             if(socket_descriptor > 0)   
                 FD_SET( socket_descriptor , &read_file_descriptors);   
                  
-            //highest file descriptor number, need it for the select function  
             if(socket_descriptor > max_socket_descriptor)   
                 max_socket_descriptor = socket_descriptor;   
-        }   
-     
-        //wait for an activity on one of the sockets , timeout is NULL ,  
-        //so wait indefinitely  
+        }
+
+        // Aguarda por uma atividade nos sockets
+        // O recebimento de null significa a ocorrencia de um timeout
         activity = select( max_socket_descriptor + 1 , &read_file_descriptors , NULL , NULL , NULL);   
        
         if ((activity < 0) && (errno!=EINTR)){   
             printf("select error");   
         }   
-             
-        //If something happened on the master socket ,  
-        //then its an incoming connection  
-        if (FD_ISSET(master_socket, &read_file_descriptors)){   
-            if ((new_socket = accept(master_socket,  
-                    (struct sockaddr *)&address, (socklen_t*)&addrlen))<0){   
-                perror("accept");   
+
+        // Caso algo ocorra no master socket, entao temos uma conexao a caminho.
+        if (FD_ISSET(master_socket, &read_file_descriptors)) {
+            if ((new_socket = accept(master_socket, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0) {
+                perror("accept");
+
                 return EXIT_FAILURE;   
-            }   
-             
-            //inform user of socket number - used in send and receive commands  
+            }
+
+            // Informa o usuario a respeito do numero do socket
+            // Utilizado para o envio e recebimento de comandos
             printf("[+]New connection , socket fd is %d , ip is : %s , port : %d \n" , new_socket , inet_ntoa(address.sin_addr) , ntohs 
                   (address.sin_port));   
            
-            //send descrization  
-                
+            // Envia a discretizacao
             sprintf(buffer_in, "%lf", descrization);
-            if( send(new_socket, buffer_in, strlen(buffer_in), 0) != strlen(buffer_in)){   
-                perror("send");   
-            }   
-              
-                 
-            //add new socket to array of sockets  
-            for (i = 0; i < max_clients; i++){   
-                //if position is empty  
-                if( slave_socket[i] == 0 )   
-                {   
-                    slave_socket[i] = new_socket;   
-                    //printf("Adding to list of sockets as %d\n" , i);   
-                         
+
+            if( send(new_socket, buffer_in, strlen(buffer_in), 0) != strlen(buffer_in))
+                perror("send");
+               
+            // Adiciona um novo socket ao array de sockets
+            for (i = 0; i < max_clients; i++)
+                if(slave_socket[i] == 0 ) {   
+                    slave_socket[i] = new_socket;
                     break;   
-                }   
-            }   
+                }
         }
-            
-        //else its some IO operation on some other socket 
-        for (i = 0; i < max_clients; i++){   
+
+        // Caso contrario, temos uma operacao de IO em algum outro socket
+        for (i = 0; i < max_clients; i++) {
             memset(buffer_in, 0x0, BUFFER_LENGTH);
+            
             memset(buffer, 0x0, BUFFER_LENGTH);
             
             socket_descriptor = slave_socket[i];
                  
-            if (FD_ISSET(socket_descriptor , &read_file_descriptors)){   
-                //Check if it was for closing , and also read the  
-                //incoming message  
-                if ((valread = read( socket_descriptor , buffer, 1024)) == 0){   
-                                       
-                    //Somebody disconnected , get his details and print  
+            if (FD_ISSET(socket_descriptor , &read_file_descriptors)){
+                // Le a mensagem enviada pelo socket e verifica se esta
+                // trata-se de seu fechamento
+                if ((valread = read( socket_descriptor , buffer, 1024)) == 0) {
                     getpeername(socket_descriptor , (struct sockaddr*)&address ,  
-                        (socklen_t*)&addrlen);   
-                    printf("Host disconnected , ip %s , port %d \n" ,  
+                        (socklen_t*)&addrlen);
+
+                    printf("Host disconnected , ip %s , port %d \n" ,
                           inet_ntoa(address.sin_addr) , ntohs(address.sin_port));   
                          
-                    //Close the socket and mark as 0 in list for reuse  
-                    close( socket_descriptor );   
+                    // Fecha o socket
+                    close( socket_descriptor );
+
                     FD_CLR (socket_descriptor, &read_file_descriptors);
                     FD_CLR (master_socket, &read_file_descriptors);
+                    
                     slave_socket[i] = 0;
 
                     closed_slaves++;
@@ -208,33 +196,29 @@ int main(int argc , char *argv[]) {
                         executing  = FALSE;
                 }   
                      
-                // receives the message from the slave   
-                else{   
-                    // if the intervalo is bigger than 100, send bye to the slave                                                
-                    if(intervalo + descrization >= 100){
-                       
+                // Recebe a mensagem do slave
+                else {
+                    // Caso o intervalo seja maior que 100, envia um bye para o slive                                          
+                    if(intervalo + descrization >= 100) {
                         strcpy(buffer, "bye");
-                        send(socket_descriptor, buffer, strlen(buffer), 0);
 
+                        send(socket_descriptor, buffer, strlen(buffer), 0);
                     }
-                    // Calculate the intervalo
-                    else{ 
-                        
-                        if(strcmp(buffer, "ready") == 0){ //Slave is ready to calculate
-                           // getpeername(socket_descriptor , (struct sockaddr*)&address, (socklen_t*)&addrlen); 
-                           // printf("Host ip %s , port %d  is ready\n" , inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
-                            
+
+                    // Calcula o intervalo
+                    else {
+                        if (strcmp(buffer, "ready") == 0) {  
                             sprintf(buffer, "%lf", intervalo);
+
                             send(socket_descriptor , buffer , strlen(buffer) , 0 );                    
-                        
                         }
-                        else { //Slave return a value and master sends another range to  calculate.
-                          /*  getpeername(socket_descriptor , (struct sockaddr*)&address, (socklen_t*)&addrlen); 
-                             printf("Host ip %s , port %d  says\n" , inet_ntoa(address.sin_addr) , ntohs(address.sin_port)); */
-                            
+                        else {
                             sscanf(buffer, "%lf", &aux);
+                            
                             total += aux;
+                            
                             sprintf(buffer, "%lf", intervalo);
+                            
                             send(socket_descriptor , buffer , strlen(buffer) , 0 );
                         
                         }
